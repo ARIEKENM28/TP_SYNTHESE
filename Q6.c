@@ -5,27 +5,36 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "enseash.h"
 
-void execute_command_with_timing(char *command, int *status, int *exec_time_ms) {
-    // Déclaration des structures timespec pour stocker le temps de début et de fin et clock_gettime pour obtenir l'heure actuelle à l'aide de l'horloge monotone et le stocker dans le start
+void execute_command_with_args(char *command, int *status, int *exec_time_ms) {
     struct timespec start, end;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
     pid_t pid = fork();
     if (pid == 0) {
-        // Remplace le processus enfant par le nouveau programme exécuté par commande
-        execlp(command, command, (char *)NULL);
+        // divise la chaine de caractères en tokens et les stocke dans le tableau argv
+        char *argv[BUFFER_SIZE / 2 + 1];
+        char *token = strtok(command, " ");
+        int argc = 0;
+
+        while (token != NULL) {
+            argv[argc++] = token;
+            token = strtok(NULL, " ");
+        }
+        argv[argc] = NULL;
+
+        execvp(argv[0], argv);
         
         perror("exec");
-        // Le processus enfant se termine en cas d'erreur
         exit(EXIT_FAILURE);
     } else if (pid > 0) {
-        
+    
         waitpid(pid, status, 0);
         clock_gettime(CLOCK_MONOTONIC, &end);
 
-        
+        // calcul du temps d'exécution en millisesonde
         *exec_time_ms = (end.tv_sec - start.tv_sec) * 1000 + (end.tv_nsec - start.tv_nsec) / 1000000;
     } else {
         
